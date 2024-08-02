@@ -19,9 +19,12 @@ CONNECTION_STRING = os.getenv("PG_CONNECTION_STRING")
 
 llm = get_openai_llm()
 
+class Chat(BaseModel):
+    text: str
+    session_id: uuid.UUID
+
 class ChatModel(BaseModel):
     text: str
-    session_id: uuid.UUID | None
     collection_name: str
 
 api_router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -30,9 +33,12 @@ def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
 @api_router.post("",summary="Chat with OpenAI API", description="This endpoint accepts a text query and returns a response from the OpenAI API.")
-async def chat(query: ChatModel):
-    chain = JUST_CHAT_PROMPT | llm | StrOutputParser()
-    response = await chain.ainvoke({"message": query})
+async def chat(chat: Chat):
+    if not chat.text or not chat.session_id:
+        raise HTTPException(status_code=400, detail="You must provide a text query and session ID")
+    
+    chain = HistoryChain(session_id=chat.session_id)
+    response = chain.chat(message=chat.text)
     
     return JSONResponse({"answer": response})
 
@@ -41,23 +47,17 @@ async def chat(body: ChatModel, db: Session = Depends(get_db)):
     if not body.collection_name:
         raise HTTPException(status_code=400, detail="You must provide a collection name")
     
-    if not body.session_id:
-        raise HTTPException(status_code=404, detail="Session id is required")
-    
     collection = db.query(Collection).filter(Collection.name == body.collection_name).first()
-    print("COLLECTION: ", collection)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
-    # chain = (
-    #     {
-    #         "context": get_pg_vector_retriever(collection_name=body.collection_name) | format_docs,
-    #         "question": RunnablePassthrough()
-    #     }
-    #     | QA_PROMPT_TEMPLATE | llm | StrOutputParser()
-    # )
-    # response = chain.invoke(body.text)
-
-    chain = HistoryChain(session_id=body.session_id)
-    response = chain.chat(body.text)
+    
+    chain = (
+        {
+            "context": get_pg_vector_retriever(collection_name=body.collection_name) | format_docs,
+            "question": RunnablePassthrough()
+        }
+        | QA_PROMPT_TEMPLATE | llm | StrOutputParser()
+    )
+    response = chain.invoke(body.text)
 
     return JSONResponse({"answer": response})
