@@ -6,7 +6,7 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader, Direct
 from .helpers import delete_files
 from .pg_vectorstore import insert_documents
 
-def text_document_loader(directory_path: str) -> None:
+def text_document_loader(directory_path: str, collection: str) -> None:
     try:
         if len(os.listdir(directory_path)) == 0:
             return None
@@ -26,14 +26,14 @@ def text_document_loader(directory_path: str) -> None:
 
         documents = loader.load_and_split(text_splitter=text_splitter)
 
-        insert_documents(documents, None)
+        insert_documents(documents, collection)
         delete_files(folder_name=directory_path)
 
     except Exception as e:
         delete_files(folder_name=directory_path)
         print(f"Error loading text files: {e}")
 
-def pdf_document_loader(directory_path: str) -> None:
+def pdf_document_loader(directory_path: str, collection: str) -> None:
     try:
         if len(os.listdir(directory_path)) == 0:
             return None
@@ -54,7 +54,7 @@ def pdf_document_loader(directory_path: str) -> None:
 
         documents = loader.load_and_split(text_splitter=text_splitter)
 
-        insert_documents(documents, None)
+        insert_documents(documents, collection)
         delete_files(folder_name=directory_path)
     
     except Exception as e:

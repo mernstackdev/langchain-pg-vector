@@ -1,13 +1,13 @@
 import os
 from typing import List
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 
 from utils.document_loaders import text_document_loader, pdf_document_loader
 
 UPLOAD_FOLDER = "uploads"
 api_router = APIRouter(prefix="/documents", tags=["Document"])
-
 
 @api_router.post(
     "/upload_files",
@@ -19,7 +19,7 @@ api_router = APIRouter(prefix="/documents", tags=["Document"])
                  and store the embeddings into a vector database.
                  """,
 )
-async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
+async def upload_documents(collection_name: str = Form(...), files: List[UploadFile] = File(...)) -> JSONResponse:
     try:
         file_names = []
         for file in files:
@@ -37,8 +37,8 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
             with open(file_path, "wb") as buffer:
                 buffer.write(await file.read())
 
-        text_document_loader(directory_path=f"{UPLOAD_FOLDER}/text_docs")
-        pdf_document_loader(directory_path=f"{UPLOAD_FOLDER}/pdf_docs")
+        text_document_loader(directory_path=f"{UPLOAD_FOLDER}/text_docs", collection=collection_name)
+        pdf_document_loader(directory_path=f"{UPLOAD_FOLDER}/pdf_docs", collection=collection_name)
 
         # Return success message
         return JSONResponse({"message": "Files uploaded and processed successfully"})
