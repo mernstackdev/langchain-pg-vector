@@ -37,3 +37,7 @@ app.include_router(router=chat.api_router)
 
 if __name__ == '__main__':
     uvicorn.run(app="main:app", host="127.0.0.1", port=5000, reload=True)
+
+
+# CONNECTION_STRING = "postgresql+psycopg://postgres:khizar123@localhost:5433/vector_db"
+# COLLECTION_NAME = 'general_collection'
